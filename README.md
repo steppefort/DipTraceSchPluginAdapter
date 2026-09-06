@@ -375,7 +375,7 @@ Automatic capture cleanup is not implemented. Captures may contain project data 
 ## References and license
 
 - [Adapter API](docs/API.md).
-- [Migration guide (Russian)](docs/MIGRATION_RU.md).
+- [Migration guide](docs/MIGRATION.md).
 - [Official DipTrace documentation and SDK](https://diptrace.com/support/tutorials/).
 - [DipTrace plugin specification](https://diptrace.com/books/DipTrace_Plugins.pdf).
 - [MIT license](LICENSE) and [third-party notices](THIRD_PARTY.md).
