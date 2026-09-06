@@ -8,10 +8,10 @@ The EXE can be renamed for each plugin without recompilation. A plugin supplies
 No BOM grouping, OTS formatting, VPT editing or title replacement rules live in
 this adapter. Python 3.11+ must be installed; Python is not embedded in the EXE.
 
-| Mode | Lifecycle | Project writeback |
-| --- | --- | --- |
+| Mode  | Lifecycle                                                        | Project writeback                 |
+| ----- | ---------------------------------------------------------------- | --------------------------------- |
 | `job` | Capture XML, start worker, release DipTrace; worker exits itself | Disabled; `ImpMode=None` required |
-| `ui` | Keep adapter alive until UI closes; publish on successful return | Explicit `ctx.commit_xml()` only |
+| `ui`  | Keep adapter alive until UI closes; publish on successful return | Explicit `ctx.commit_xml()` only  |
 
 UI mode is synchronous from DipTrace's perspective: changes are imported after
 its launched EXE exits. This is a file exchange API, not a live RPC connection.
