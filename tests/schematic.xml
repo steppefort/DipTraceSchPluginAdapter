@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Source Type="DipTrace-Schematic" Version="5.3.0.3" Units="mm">
+  <Library Type="DipTrace-ComponentLibrary"><UnknownCache Keep="Y"/></Library>
+  <Schematic>
+    <Settings><ProjectDir>C:\Example\Project</ProjectDir></Settings>
+    <SheetSettings><Sheets><Sheet><Id>0</Id><Name>Sheet1</Name>
+      <BorderZones><BottomRightBlock><Name>Test frame</Name><Fields>
+        <Field Id="5" TextShow="Text" FontSizeFloat="8"><TextLines>
+          <TextLine>Designed by</TextLine><TextLine>Old author</TextLine>
+        </TextLines><FontName>Arial</FontName></Field>
+      </Fields></BottomRightBlock></BorderZones>
+    </Sheet></Sheets></SheetSettings>
+    <Nets><Net Id="0"><Name>KEEP</Name><Wires><Wire Id="0"/></Wires></Net></Nets>
+    <FutureMetadata Keep="Y">synthetic test only</FutureMetadata>
+  </Schematic>
+</Source>

@@ -1,0 +1,19 @@
+<?xml version='1.0' encoding='utf-8'?>
+<Source Type="DipTrace_Schematic_Plugin" Name="AdapterDemoJob" ExeFile="AdapterDemoJob.exe" Hint="DipTraceSchPluginAdapter example">
+  <Settings>
+    <ExpMode>All</ExpMode>
+    <ImpMode>None</ImpMode>
+    <Comp>All</Comp>
+    <Net>All</Net>
+    <Shape>All</Shape>
+    <Bus>All</Bus>
+    <Table>All</Table>
+    <BusConnectors>All</BusConnectors>
+    <Diff>All</Diff>
+    <Dim>None</Dim>
+    <Board>None</Board>
+    <Trace>None</Trace>
+    <Stamp>Yes</Stamp>
+    <Patterns>Yes</Patterns>
+  </Settings>
+</Source>
