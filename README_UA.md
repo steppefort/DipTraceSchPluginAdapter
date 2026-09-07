@@ -6,7 +6,83 @@
 
 Не потрібно писати й компілювати окремий EXE для кожного плагіна. Готовий `DipTraceSchPluginAdapter.exe` можна перейменувати; функціональність плагіна реалізується у звичайних Python-файлах. Через API доступні XML-дані, які експортує DipTrace, та вибрані змінні середовища, успадковані від процесу DipTrace.
 
-Версія **0.1.0**, API **1**, ліцензія **MIT**. Незалежний проєкт спільноти.
+Версія **0.1.1**, API **1**, ліцензія **MIT**. Незалежний проєкт спільноти.
+
+## Версії та випуски
+
+`build_info.json` у корені репозиторію — джерело версії адаптера та номера API.
+Цей випуск має версію **0.1.1**, API **1**. BOMJob **0.2.7** — версія окремого
+плагіна, а не попередній випуск адаптера.
+
+Інструмент збірки створює копію метаданих для Python і заголовок для C,
+оновлює рядок версії в обох README, вбудовує Windows `FileVersion` і
+`ProductVersion` та записує хеш EXE до `build_info.json`.
+Не редагуйте згенеровані файли версії та записані хеші вручну.
+Встановлений Python-пакет читає свій згенерований `build_info.json`;
+нативний EXE містить ту саму версію, вбудовану під час компіляції.
+
+Версію завантаженого або встановленого адаптера можна побачити:
+
+- У назві архіву випуску `DipTraceSchPluginAdapter-0.1.1.zip`.
+- У Windows **Властивості → Докладно** для EXE, навіть після перейменування.
+- Командою `DipTraceSchPluginAdapter.exe --version`, яка відкриває інформаційне вікно.
+- Командою `py -3 python/host.py --version` у репозиторії або
+  `py -3 .adapter/host.py --version` у папці встановленого плагіна.
+- У полі `adapter_version` файлів `adapter.lock.json`, `context.json` та
+  `status.json`, а також у нативному журналі запуску та `worker.log`.
+- Через `diptrace_adapter.__version__` і `diptrace_adapter.API_VERSION` у Python.
+
+Версія адаптера та версія плагіна незалежні. Щоб показувати власну версію
+плагіна в меню DipTrace, створіть його так:
+
+```powershell
+py -3 tools/new_plugin.py D:\PluginBuild\MyPlugin --name MyPlugin --mode job --plugin-version 0.1.1
+```
+
+Назва в меню буде **MyPlugin 0.1.1**, а ім’я EXE залишиться `MyPlugin.exe`,
+ідентифікатор `plugin_id` — `MyPlugin`. Версію також буде записано до
+`[plugin] version` у `adapter.ini`. Без `--plugin-version` назва в меню
+залишається без версії. Для наявного плагіна під час випуску оновіть і
+`[plugin] version`, і атрибут `Name` у `settings.xml`. Оновлення самого адаптера
+не змінює версію плагіна або його назву в меню.
+`ctx.adapter_version` та `ctx.plugin_version` повертають ці значення окремо;
+`ctx.plugin_version` дорівнює `None`, якщо версію не задано.
+
+Порядок публікації випуску адаптера:
+
+1. Встановіть `version` у кореневому `build_info.json`; оновіть `changes` та
+   [CHANGELOG_UA.md](CHANGELOG_UA.md). Змінюйте `api_version` лише за навмисної
+   несумісної зміни API разом із відповідними змінами реалізації.
+2. Виконайте [збірку та тести](#збірка-самого-адаптера-та-тести), а потім:
+
+   ```powershell
+   py -3 tools/versioning.py --check
+   py -3 tools/release.py
+   ```
+
+   ZIP з’явиться в `build/releases/`. Пакування оновлює обидва файли контрольних
+   сум і не включає історію Git, локальні продукти збірки та захоплення.
+3. Перегляньте зміни та закомітьте вихідний код, згенеровані метадані, README,
+   файли контрольних сум і `dist/DipTraceSchPluginAdapter.exe`. Для цього випуску:
+
+   ```powershell
+   git status --short
+   git add .
+   git commit -m "Release DipTraceSchPluginAdapter 0.1.1"
+   git tag -a v0.1.1 -m "DipTraceSchPluginAdapter 0.1.1"
+   git push origin main
+   git push origin v0.1.1
+   ```
+
+4. Створіть GitHub Release із тегу `v0.1.1` і додайте
+   `build/releases/DipTraceSchPluginAdapter-0.1.1.zip`.
+   Автоматичний архів вихідного коду GitHub не замінює цей іменований файл випуску.
+5. У залежних проєктах, наприклад FineBOM, закріпіть повний SHA коміту з команди
+   `git rev-parse "v0.1.1^{commit}"` та перескладіть плагін.
+
+Опублікований тег позначає незмінний випуск; для подальших змін використовуйте
+нову версію. Тести та пакування самі не надсилають коміти й не публікують
+GitHub Releases.
 
 ## Що входить до адаптера
 
@@ -351,7 +427,7 @@ python -m unittest discover -s tests -v
 
 [Міст BOMJob](examples/bomjob_bridge/plugin.py) показує виклик наявного обробника BOMJob 0.2.7: розмістіть міст як `plugin.py` поруч із модулями BOMJob, збережіть `bomjob.ini` та шаблони, використовуйте `mode=job` і `ImpMode=None`.
 
-[Приклад UI](examples/ui/plugin.py) демонструє редагування поля рамки. Повний редактор шаблонів або змінних середовища потрібно реалізувати окремо. Додаткові рекомендації: [нотатки щодо міграції](docs/MIGRATION_RU.md).
+[Приклад UI](examples/ui/plugin.py) демонструє редагування поля рамки. Повний редактор шаблонів або змінних середовища потрібно реалізувати окремо. Додаткові рекомендації: [нотатки щодо міграції](docs/MIGRATION_UA.md).
 
 ## Діагностика
 
@@ -375,7 +451,7 @@ python -m unittest discover -s tests -v
 ## Довідка та ліцензія
 
 - [API адаптера](docs/API.md).
-- [Рекомендації щодо міграції](docs/MIGRATION_RU.md).
+- [Рекомендації щодо міграції](docs/MIGRATION_UA.md).
 - [Офіційна документація та SDK DipTrace](https://diptrace.com/support/tutorials/).
 - [Специфікація плагінів DipTrace](https://diptrace.com/books/DipTrace_Plugins.pdf).
 - [Ліцензія MIT](LICENSE) та [повідомлення про сторонні компоненти](THIRD_PARTY.md).

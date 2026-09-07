@@ -18,6 +18,7 @@ import traceback
 import uuid
 import xml.etree.ElementTree as ET
 from .api import AdapterError, Context, atomic_write, json_write, parse_xml
+from .version import __version__, API_VERSION
 
 
 def read_config(path):
@@ -38,7 +39,9 @@ def read_config(path):
     # Full exchange round trip: no partial list replacement is allowed here.
     if mode=='ui' and (settings['ExpMode']!='All' or settings['ImpMode']!='All'):
         raise AdapterError('ui API v1 requires ExpMode=All and ImpMode=All')
-    return c,dict(api_version=1,mode=mode,plugin_id=plugin_id,write_scope=scope,
+    return c,dict(api_version=API_VERSION,adapter_version=__version__,
+                  plugin_version=c.get('plugin','version',fallback='').strip() or None,
+                  mode=mode,plugin_id=plugin_id,write_scope=scope,
                   plugin_dir=str(path.parent),entry=str(entry),config_path=str(path),settings=settings)
 
 
@@ -70,6 +73,8 @@ def validate_result(original,candidate,scope):
 
 def invoke_worker(request):
     ctx=Context(request)
+    print(f'DipTraceSchPluginAdapter {__version__}; API {API_VERSION}; '
+          f'plugin {ctx.plugin_id}; plugin version {ctx.plugin_version or "unspecified"}',flush=True)
     try:
         sys.path.insert(0,str(ctx.plugin_dir))
         spec=importlib.util.spec_from_file_location('_dt_plugin_'+uuid.uuid4().hex,ctx._data['entry'])
@@ -79,13 +84,15 @@ def invoke_worker(request):
         if result not in (None,0):raise AdapterError('main(context) returned nonzero: '+str(result))
         ctx.read_xml()  # Detect accidental edits to the capture before publication.
         status='cancelled' if ctx._cancelled else 'changed' if ctx._staged else 'ok'
-        json_write(ctx.run_dir/'status.json',{'api_version':1,'status':status,'result_sha256':ctx._staged})
+        json_write(ctx.run_dir/'status.json',{'api_version':API_VERSION,'adapter_version':__version__,
+                                            'status':status,'result_sha256':ctx._staged})
         return 0
     except BaseException:
         ctx.cancel()
         message=traceback.format_exc()
         ctx.log(message)
-        json_write(ctx.run_dir/'status.json',{'api_version':1,'status':'error','error':message})
+        json_write(ctx.run_dir/'status.json',{'api_version':API_VERSION,'adapter_version':__version__,
+                                            'status':'error','error':message})
         return 1
 
 
@@ -124,7 +131,7 @@ def launch(config,exchange):
     json_write(base/'latest.json',{'run_dir':str(run),'api_version':1})
     # BOMJob compatibility: only a copied capture, never the DipTrace temp file.
     json_write(run/'capture.json',{'mode':'run','captured_xml':str(run/'exchange.xml')})
-    json_write(run/'status.json',{'api_version':1,'status':'starting'})
+    json_write(run/'status.json',{'api_version':API_VERSION,'adapter_version':__version__,'status':'starting'})
     with (run/'worker.log').open('wb') as stream:
         process=subprocess.Popen([sys.executable,str(Path(__file__).resolve().parents[1]/'host.py'),
                                   '--worker',str(run/'context.json')],cwd=request['plugin_dir'],
@@ -143,6 +150,7 @@ def launch(config,exchange):
 
 def main(argv=None):
     parser=argparse.ArgumentParser()
+    parser.add_argument('--version',action='version',version=f'DipTraceSchPluginAdapter {__version__}, API {API_VERSION}')
     parser.add_argument('--config',type=Path);parser.add_argument('--exchange',type=Path)
     parser.add_argument('--worker',type=Path)
     args=parser.parse_args(argv)
@@ -157,5 +165,5 @@ def main(argv=None):
         if sys.stderr is not None:print(detail,file=sys.stderr)
         if os.name=='nt':
             import ctypes
-            ctypes.windll.user32.MessageBoxW(None,str(error),'DipTraceSchPluginAdapter',0x10)
+            ctypes.windll.user32.MessageBoxW(None,str(error),f'DipTraceSchPluginAdapter {__version__}',0x10)
         return 1

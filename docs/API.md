@@ -54,6 +54,8 @@ These rules apply to the XML returned to DipTrace. Files created or changed dire
 | `ctx.plugin_dir` | The plugin directory as a `pathlib.Path`. |
 | `ctx.run_dir` | The current run directory as a `pathlib.Path`. |
 | `ctx.plugin_id`, `ctx.mode` | The identifier and mode for this invocation. |
+| `ctx.adapter_version` | Version of the adapter that created this context. |
+| `ctx.plugin_version` | Plugin version from `[plugin] version`, or `None` when not configured. |
 | `ctx.environment(names)` | Returns the requested inherited environment variables with normalized keys. See [Environment variables](#environment-variables). |
 | `ctx.commit_xml(bytes_or_root)` | Stages a complete XML document supplied as `bytes` or an `Element` root. Available only in `ui` mode. |
 | `ctx.cancel()` | Discards the staged result and marks the invocation as cancelled. Further commits are rejected. |
@@ -132,3 +134,11 @@ Only requested variables that were found are saved in `selected_environment.json
 The API version is separate from the adapter release version. Pin the complete adapter to a specific repository commit, including both the EXE and Python runtime modules. Incompatible changes to the request format or plugin entry-point contract require a new API version.
 
 Use [`tools/vendor_adapter.py`](../tools/vendor_adapter.py) to install or update matching files and retain `adapter.lock.json`. Do not combine an EXE from one adapter version with runtime modules from an unrelated version. See [dependency setup in the README](../README.md#use-the-adapter-repository-as-a-dependency).
+
+## Version metadata
+
+`diptrace_adapter.__version__` and `diptrace_adapter.API_VERSION` are read from
+the generated `build_info.json` snapshot. Run `py -3 .adapter/host.py --version`
+to identify the installed Python runtime without executing the plugin.
+Plugin and adapter versions are independent; updating the dependency does not
+change the plugin display name in DipTrace.

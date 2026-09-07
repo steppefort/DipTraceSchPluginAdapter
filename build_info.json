@@ -1,15 +1,19 @@
 {
-  "version": "0.1.0",
+  "version": "0.1.1",
   "api_version": 1,
   "build": "Zig 0.14.1; x86_64-windows-gnu; GUI subsystem",
-  "exe_sha256": "e6ccb65619ab6b5929d728e769c89fcffa7a3902d87bb381d1a9be81eb0cd092",
-  "exe_bytes": 25600,
-  "python_test_platform": "3.12.13 / Linux",
-  "tests_passed": 14,
-  "tests_skipped": 1,
-  "native_windows_execution_tested": false,
-  "diptrace_integration_tested": false,
-  "bomjob_bridge": "0.2.7, actual captured XML and OTS, one ODS in Docs, unchanged input; Linux worker chain",
-  "titlejob_migration": "Not completed: current TitleJobUI.zip download failed HTTP 502",
-  "official_protocol": "https://diptrace.com/support/tutorials/"
+  "exe_sha256": "215ca6e1e6dffc128307366754ce78319a27fe30578d783c039e493801225bf3",
+  "exe_bytes": 30208,
+  "changes": [
+    "SearchPathW resolution for bare interpreter names",
+    "Native startup log in TEMP before Python is launched",
+    "Redirect child stdout/stderr with an explicit inherited handle list",
+    "Report nonzero Python host exit codes",
+    "Pass the fixed -3 selector unquoted so legacy py.exe consumes it before invoking python.exe",
+    "Version metadata generated from build_info.json for Python, native launcher and Windows file properties",
+    "Independent optional plugin version in generated DipTrace display names"
+  ],
+  "built_version": "0.1.1",
+  "built_api_version": 1,
+  "native_source_sha256": "fc465e83e6cf3e51c7241bf28cbab2b89763073615e9814715d9c9c156218513"
 }

@@ -13,6 +13,13 @@ def install(root,destination,exe_name,repository,revision):
     if not re.fullmatch(r'[A-Za-z0-9_.-]+\.exe',exe_name):raise ValueError('Use an ASCII exe basename')
     binary=root/'dist/DipTraceSchPluginAdapter.exe'
     if not binary.is_file():raise FileNotFoundError('Pinned source needs dist/DipTraceSchPluginAdapter.exe')
+    info=json.loads((root/'build_info.json').read_text(encoding='utf-8'))
+    if 'built_version' in info:
+        snapshot=json.loads((root/'python/diptrace_adapter/build_info.json').read_text(encoding='utf-8'))
+        if (info['version']!=info['built_version'] or info['api_version']!=info['built_api_version']
+            or snapshot!={'version':info['version'],'api_version':info['api_version']}
+            or hashlib.sha256(binary.read_bytes()).hexdigest()!=info['exe_sha256']):
+            raise ValueError('Adapter build metadata is stale; rebuild the adapter before vendoring')
     # Prepare runtime before replacing an old dependency; business files untouched.
     destination.mkdir(parents=True,exist_ok=True)
     with tempfile.TemporaryDirectory(dir=destination) as temp:
@@ -31,7 +38,8 @@ def install(root,destination,exe_name,repository,revision):
             raise
         shutil.copy2(binary,destination/exe_name)
     files=[destination/exe_name,*sorted(p for p in (destination/'.adapter').rglob('*') if p.is_file())]
-    lock={'adapter':'DipTraceSchPluginAdapter','api_version':1,'repository':repository,'commit':revision,
+    lock={'adapter':'DipTraceSchPluginAdapter','adapter_version':info['version'],
+          'api_version':info['api_version'],'repository':repository,'commit':revision,
           'files':{str(p.relative_to(destination)).replace('\\','/'):hashlib.sha256(p.read_bytes()).hexdigest() for p in files}}
     (destination/'adapter.lock.json').write_text(json.dumps(lock,indent=2)+'\n',encoding='utf-8')
     return lock

@@ -6,6 +6,7 @@ import os
 from pathlib import Path
 import tempfile
 import xml.etree.ElementTree as ET
+from .version import __version__
 
 class AdapterError(RuntimeError): pass
 
@@ -49,6 +50,8 @@ class Context:
         self.plugin_dir=Path(self._data['plugin_dir'])
         self.mode=self._data['mode']
         self.plugin_id=self._data['plugin_id']
+        self.adapter_version=self._data.get('adapter_version',__version__)
+        self.plugin_version=self._data.get('plugin_version')
         self.exchange_path=self.run_dir/'exchange.xml'
         self._staged=None
         self._cancelled=False

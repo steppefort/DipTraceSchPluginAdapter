@@ -16,7 +16,9 @@ sys.path[:0]=[str(ROOT/'python'),str(ROOT/'tools')]
 from diptrace_adapter.host import launch,invoke_worker,publish_result,read_config,validate_result
 from diptrace_adapter.api import AdapterError,Context,parse_xml
 from new_plugin import create
-from vendor_adapter import fetch
+from vendor_adapter import fetch, install
+from diptrace_adapter import __version__, API_VERSION
+from versioning import sync
 
 class AdapterTests(unittest.TestCase):
     def setUp(self):
@@ -137,6 +139,47 @@ def main(ctx):
         data=(ctx.run_dir/'selected_environment.json').read_text()
         self.assertNotIn('SECRET',data);self.assertNotIn('do-not-export',data)
 
+    def test_release_metadata_and_python_cli_agree(self):
+        info=sync(check=True)
+        self.assertEqual(__version__,info['version'])
+        self.assertEqual(API_VERSION,info['api_version'])
+        text=subprocess.check_output([sys.executable,str(ROOT/'python/host.py'),'--version'],text=True)
+        self.assertEqual(text.strip(),f'DipTraceSchPluginAdapter {__version__}, API {API_VERSION}')
+
+    def test_plugin_version_is_independent_and_survives_adapter_update(self):
+        create(self.plugin,'TestPlugin','ui',plugin_version='2.3.4')
+        manifest=ET.parse(self.plugin/'settings.xml').getroot()
+        self.assertEqual(manifest.get('Name'),'TestPlugin 2.3.4')
+        self.assertEqual(manifest.get('ExeFile'),'TestPlugin.exe')
+        ini=self.plugin/'adapter.ini'
+        text=ini.read_text().replace('capture_dir =','capture_dir = '+str(self.root/'captures'))
+        ini.write_text(text)
+        (self.plugin/'plugin.py').write_text('def main(ctx):\n    ctx.log(ctx.adapter_version + " / " + ctx.plugin_version)\n')
+        self.assertEqual(launch(ini,self.original),0)
+        ctx=Context(self.run_dir()/'context.json')
+        self.assertEqual(ctx.adapter_version,__version__)
+        self.assertEqual(ctx.plugin_version,'2.3.4')
+        self.assertEqual(ctx.plugin_id,'TestPlugin')
+        self.assertIn(__version__+' / 2.3.4',(ctx.run_dir/'plugin.log').read_text())
+        self.assertIn('plugin version 2.3.4',(ctx.run_dir/'worker.log').read_text())
+        self.assertEqual(self.wait_status()['adapter_version'],__version__)
+        before=(self.plugin/'settings.xml').read_bytes()
+        lock=install(ROOT,self.plugin,'TestPlugin.exe','local-checkout','test')
+        self.assertEqual(lock['adapter_version'],__version__)
+        self.assertEqual((self.plugin/'settings.xml').read_bytes(),before)
+        self.assertEqual(ini.read_text(),text)
+
+    def test_vendoring_rejects_a_stale_binary_version(self):
+        repo=self.root/'stale';repo.mkdir()
+        (repo/'dist').mkdir()
+        shutil.copy2(ROOT/'dist/DipTraceSchPluginAdapter.exe',repo/'dist')
+        shutil.copytree(ROOT/'python',repo/'python')
+        info=json.loads((ROOT/'build_info.json').read_text());info['version']='9.9.9'
+        (repo/'build_info.json').write_text(json.dumps(info))
+        with self.assertRaisesRegex(ValueError,'stale'):
+            install(repo,self.plugin,'TestPlugin.exe','local-checkout','test')
+        self.assertFalse(self.plugin.exists())
+
     def test_native_binary_is_x64_gui(self):
         b=(ROOT/'dist/DipTraceSchPluginAdapter.exe').read_bytes();off=struct.unpack_from('<I',b,0x3c)[0]
         self.assertEqual(b[:2],b'MZ');self.assertEqual(b[off:off+4],b'PE\0\0')
@@ -145,6 +188,7 @@ def main(ctx):
 
     def test_pinned_dependency_fetch_and_hashes(self):
         repo=self.root/'repo';repo.mkdir();shutil.copytree(ROOT/'python',repo/'python')
+        shutil.copy2(ROOT/'build_info.json',repo/'build_info.json')
         (repo/'dist').mkdir();shutil.copy2(ROOT/'dist/DipTraceSchPluginAdapter.exe',repo/'dist')
         subprocess.run(['git','init','-q',str(repo)],check=True)
         subprocess.run(['git','-C',str(repo),'add','.'],check=True)
@@ -159,8 +203,60 @@ def main(ctx):
     @unittest.skipUnless(os.name=='nt','Requires Windows native process execution')
     def test_native_windows_launch_renamed_exe(self):
         self.setup_plugin('ui','def main(ctx):\n    root=ctx.document()\n    root.find(".//TextLine").text="Native tested"\n    ctx.commit_xml(root)\n')
-        p=subprocess.run([str(self.plugin/'TestPlugin.exe'),str(self.original)],timeout=30)
+        host=self.plugin/'.adapter/host.py'
+        host.write_text('import sys\nprint("host stdout marker",flush=True)\n'
+                        'print("host stderr marker",file=sys.stderr,flush=True)\n'+
+                        host.read_text(encoding='utf-8'),encoding='utf-8')
+        temp=self.root/'native logs';temp.mkdir()
+        env=dict(os.environ,TEMP=str(temp),TMP=str(temp))
+        p=subprocess.run([str(self.plugin/'TestPlugin.exe'),str(self.original)],env=env,timeout=30)
         self.assertEqual(p.returncode,0)
         self.assertEqual(parse_xml(self.original.read_bytes()).find('.//TextLine').text,'Native tested')
+        logs=list((temp/'DipTraceSchPluginAdapter').glob('launch-*.log'))
+        self.assertEqual(len(logs),1)
+        text=logs[0].read_text(encoding='utf-8')
+        for marker in ('host stdout marker','host stderr marker','Python exit code: 0',
+                       'Resolved interpreter: '+sys.executable,'Python command: '):
+            self.assertIn(marker,text)
+
+    @unittest.skipUnless(os.name=='nt','Requires the Windows Python launcher')
+    def test_native_windows_py_version_selector(self):
+        launcher=shutil.which('py.exe')
+        if not launcher:self.skipTest('py.exe is not installed')
+        self.plugin=self.root/'Plugin with spaces'
+        ini=self.setup_plugin('ui','def main(ctx):\n    root=ctx.document()\n    root.find(".//TextLine").text="Python launcher tested"\n    ctx.commit_xml(root)\n')
+        ini.write_text(ini.read_text().replace('executable = '+sys.executable,
+                                             'executable = '+launcher),encoding='utf-8')
+        temp=self.root/'py logs';temp.mkdir()
+        env=dict(os.environ,TEMP=str(temp),TMP=str(temp))
+        process=subprocess.run([str(self.plugin/'TestPlugin.exe'),str(self.original)],
+                               cwd=self.root,env=env,timeout=30)
+        self.assertEqual(process.returncode,0)
+        self.assertEqual(parse_xml(self.original.read_bytes()).find('.//TextLine').text,
+                         'Python launcher tested')
+        logs=list((temp/'DipTraceSchPluginAdapter').glob('launch-*.log'))
+        self.assertEqual(len(logs),1)
+        log=logs[0].read_text(encoding='utf-8')
+        command=next(line for line in log.splitlines() if line.startswith('Python command:'))
+        self.assertIn(' -3 "',command)
+        self.assertNotIn(' "-3" ',command)
+        self.assertIn('Python exit code: 0',log)
+
+    @unittest.skipUnless(os.name=='nt','Requires Windows PATH lookup and native process execution')
+    def test_native_windows_interpreter_found_only_through_path(self):
+        ini=self.setup_plugin('ui', 'def main(ctx):\n    root=ctx.document()\n    root.find(".//TextLine").text="PATH lookup tested"\n    ctx.commit_xml(root)\n')
+        interpreter=Path(sys.executable)
+        self.assertNotEqual(interpreter.parent, self.plugin)
+        self.assertNotEqual(interpreter.parent, self.root)
+        text=ini.read_text().replace('executable = '+sys.executable,
+                                     'executable = '+interpreter.name)
+        ini.write_text(text,encoding='utf-8')
+        environment=dict(os.environ)
+        environment['PATH']=str(interpreter.parent)+os.pathsep+environment.get('PATH','')
+        process=subprocess.run([str(self.plugin/'TestPlugin.exe'),str(self.original)],
+                               cwd=self.root,env=environment,timeout=30)
+        self.assertEqual(process.returncode,0)
+        self.assertEqual(parse_xml(self.original.read_bytes()).find('.//TextLine').text,
+                         'PATH lookup tested')
 
 if __name__=='__main__':unittest.main()
