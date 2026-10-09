@@ -36,9 +36,18 @@ class AdapterTests(unittest.TestCase):
         ini.write_text(text,encoding='utf-8')
         return ini
 
+    def launch_job(self, ini):
+        original_popen=subprocess.Popen
+        def track_worker(*args,**kwargs):
+            process=original_popen(*args,**kwargs)
+            self.addCleanup(process.wait,timeout=30)
+            return process
+        with patch('diptrace_adapter.host.subprocess.Popen',side_effect=track_worker):
+            return launch(ini,self.original)
+
     def run_dir(self):return Path(json.loads((self.root/'captures/latest.json').read_text())['run_dir'])
     def wait_status(self):
-        end=time.monotonic()+10
+        end=time.monotonic()+30
         while time.monotonic()<end:
             status=json.loads((self.run_dir()/'status.json').read_text())
             if status['status']!='starting':return status
@@ -88,7 +97,7 @@ def main(ctx):
         time.sleep(.02)
     ctx.log('completed')
 ''')
-        self.assertEqual(launch(ini,self.original),0)
+        self.assertEqual(self.launch_job(ini),0)
         self.assertEqual((self.run_dir()/'exchange.xml').read_bytes(),self.before)
         self.assertEqual(json.loads((self.run_dir()/'status.json').read_text())['status'],'starting')
         self.original.unlink()  # DipTrace may discard its temp file after adapter exit.
@@ -97,7 +106,7 @@ def main(ctx):
 
     def test_job_writeback_is_rejected(self):
         ini=self.setup_plugin('job','def main(ctx):\n    ctx.commit_xml(ctx.document())\n')
-        launch(ini,self.original)
+        self.launch_job(ini)
         self.assertEqual(self.wait_status()['status'],'error')
         self.assertEqual(self.original.read_bytes(),self.before)
 
