@@ -6,12 +6,12 @@
 
 Не потрібно писати й компілювати окремий EXE для кожного плагіна. Готовий `DipTraceSchPluginAdapter.exe` можна перейменувати; функціональність плагіна реалізується у звичайних Python-файлах. Через API доступні XML-дані, які експортує DipTrace, та вибрані змінні середовища, успадковані від процесу DipTrace.
 
-Версія **0.1.1**, API **1**, ліцензія **MIT**. Незалежний проєкт спільноти.
+Версія **0.1.2**, API **1**, ліцензія **MIT**. Незалежний проєкт спільноти.
 
 ## Версії та випуски
 
 `build_info.json` у корені репозиторію — джерело версії адаптера та номера API.
-Цей випуск має версію **0.1.1**, API **1**. BOMJob **0.2.7** — версія окремого
+Цей випуск має версію **0.1.2**, API **1**. BOMJob **0.2.7** — версія окремого
 плагіна, а не попередній випуск адаптера.
 
 Інструмент збірки створює копію метаданих для Python і заголовок для C,
@@ -23,7 +23,7 @@
 
 Версію завантаженого або встановленого адаптера можна побачити:
 
-- У назві архіву випуску `DipTraceSchPluginAdapter-0.1.1.zip`.
+- У назві архіву випуску `DipTraceSchPluginAdapter-0.1.2.zip`.
 - У Windows **Властивості → Докладно** для EXE, навіть після перейменування.
 - Командою `DipTraceSchPluginAdapter.exe --version`, яка відкриває інформаційне вікно.
 - Командою `py -3 python/host.py --version` у репозиторії або
@@ -36,10 +36,10 @@
 плагіна в меню DipTrace, створіть його так:
 
 ```powershell
-py -3 tools/new_plugin.py D:\PluginBuild\MyPlugin --name MyPlugin --mode job --plugin-version 0.1.1
+py -3 tools/new_plugin.py D:\PluginBuild\MyPlugin --name MyPlugin --mode job --plugin-version 0.1.2
 ```
 
-Назва в меню буде **MyPlugin 0.1.1**, а ім’я EXE залишиться `MyPlugin.exe`,
+Назва в меню буде **MyPlugin 0.1.2**, а ім’я EXE залишиться `MyPlugin.exe`,
 ідентифікатор `plugin_id` — `MyPlugin`. Версію також буде записано до
 `[plugin] version` у `adapter.ini`. Без `--plugin-version` назва в меню
 залишається без версії. Для наявного плагіна під час випуску оновіть і
@@ -68,17 +68,17 @@ py -3 tools/new_plugin.py D:\PluginBuild\MyPlugin --name MyPlugin --mode job --p
    ```powershell
    git status --short
    git add .
-   git commit -m "Release DipTraceSchPluginAdapter 0.1.1"
-   git tag -a v0.1.1 -m "DipTraceSchPluginAdapter 0.1.1"
+   git commit -m "Release DipTraceSchPluginAdapter 0.1.2"
+   git tag -a v0.1.2 -m "DipTraceSchPluginAdapter 0.1.2"
    git push origin main
-   git push origin v0.1.1
+   git push origin v0.1.2
    ```
 
-4. Створіть GitHub Release із тегу `v0.1.1` і додайте
-   `build/releases/DipTraceSchPluginAdapter-0.1.1.zip`.
+4. Створіть GitHub Release із тегу `v0.1.2` і додайте
+   `build/releases/DipTraceSchPluginAdapter-0.1.2.zip`.
    Автоматичний архів вихідного коду GitHub не замінює цей іменований файл випуску.
 5. У залежних проєктах, наприклад FineBOM, закріпіть повний SHA коміту з команди
-   `git rev-parse "v0.1.1^{commit}"` та перескладіть плагін.
+   `git rev-parse "v0.1.2^{commit}"` та перескладіть плагін.
 
 Опублікований тег позначає незмінний випуск; для подальших змін використовуйте
 нову версію. Тести та пакування самі не надсилають коміти й не публікують

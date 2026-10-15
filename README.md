@@ -6,12 +6,12 @@ English · [Українська](README_UA.md)
 
 You do not need to write and compile a separate EXE for each plugin. Rename the prebuilt `DipTraceSchPluginAdapter.exe` and implement your plugin in ordinary Python files. The API provides access to the XML data exported by DipTrace and selected environment variables inherited from the DipTrace process.
 
-Version **0.1.1**, API **1**, **MIT** license. An independent community project.
+Version **0.1.2**, API **1**, **MIT** license. An independent community project.
 
 ## Versions and releases
 
 `build_info.json` in the repository root is the source of the adapter version
-and API number. This release is **0.1.1**, API **1**. BOMJob **0.2.7** is a
+and API number. This release is **0.1.2**, API **1**. BOMJob **0.2.7** is a
 separate plugin version; it is not an earlier adapter release.
 
 The build tool generates the Python metadata snapshot and native header,
@@ -23,7 +23,7 @@ the native EXE embeds that same version at compile time.
 
 You can identify a downloaded or installed adapter through:
 
-- `DipTraceSchPluginAdapter-0.1.1.zip`, the versioned release archive.
+- `DipTraceSchPluginAdapter-0.1.2.zip`, the versioned release archive.
 - Windows **Properties → Details** on the EXE, even after renaming it.
 - `DipTraceSchPluginAdapter.exe --version`, which opens an information dialog.
 - `py -3 python/host.py --version` in the repository, or
@@ -36,10 +36,10 @@ The adapter version and the plugin version are independent. To show a plugin's
 own version in the DipTrace menu, create it with:
 
 ```powershell
-py -3 tools/new_plugin.py D:\PluginBuild\MyPlugin --name MyPlugin --mode job --plugin-version 0.1.1
+py -3 tools/new_plugin.py D:\PluginBuild\MyPlugin --name MyPlugin --mode job --plugin-version 0.1.2
 ```
 
-The menu name becomes **MyPlugin 0.1.1**, while the executable stays
+The menu name becomes **MyPlugin 0.1.2**, while the executable stays
 `MyPlugin.exe` and `plugin_id` stays `MyPlugin`. The version is also written to
 `[plugin] version` in `adapter.ini`. Omitting `--plugin-version` preserves the
 unversioned display name. For an existing plugin, update both `[plugin] version`
@@ -68,17 +68,17 @@ To publish an adapter release:
    ```powershell
    git status --short
    git add .
-   git commit -m "Release DipTraceSchPluginAdapter 0.1.1"
-   git tag -a v0.1.1 -m "DipTraceSchPluginAdapter 0.1.1"
+   git commit -m "Release DipTraceSchPluginAdapter 0.1.2"
+   git tag -a v0.1.2 -m "DipTraceSchPluginAdapter 0.1.2"
    git push origin main
-   git push origin v0.1.1
+   git push origin v0.1.2
    ```
 
-4. Create a GitHub Release from tag `v0.1.1` and attach
-   `build/releases/DipTraceSchPluginAdapter-0.1.1.zip`.
+4. Create a GitHub Release from tag `v0.1.2` and attach
+   `build/releases/DipTraceSchPluginAdapter-0.1.2.zip`.
    GitHub's automatic source ZIP does not replace this named release asset.
 5. In consuming projects such as FineBOM, pin the full commit SHA resolved by
-   `git rev-parse "v0.1.1^{commit}"` and rebuild the plugin.
+   `git rev-parse "v0.1.2^{commit}"` and rebuild the plugin.
 
 An existing published tag identifies an immutable release; use a new version
 for later changes. Tests and release packaging do not push commits or publish

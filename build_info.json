@@ -1,17 +1,16 @@
 {
-  "version": "0.1.1",
+  "version": "0.1.2",
   "api_version": 1,
   "build": "Zig 0.14.1; x86_64-windows-gnu; GUI subsystem",
   "exe_sha256": "215ca6e1e6dffc128307366754ce78319a27fe30578d783c039e493801225bf3",
   "exe_bytes": 30208,
   "changes": [
-    "SearchPathW resolution for bare interpreter names",
-    "Native startup log in TEMP before Python is launched",
-    "Redirect child stdout/stderr with an explicit inherited handle list",
-    "Report nonzero Python host exit codes",
-    "Pass the fixed -3 selector unquoted so legacy py.exe consumes it before invoking python.exe",
-    "Version metadata generated from build_info.json for Python, native launcher and Windows file properties",
-    "Independent optional plugin version in generated DipTrace display names"
+    "Support ImpMode=Edit or All in UI mode with API 1 and full XML commits",
+    "Advance modified exchange XML timestamps by at least two seconds; avoid no-op publication",
+    "Detect exchange XML rewrites using source modification time and size in addition to SHA-256",
+    "Control UI Python process trees with Windows Job Object while preserving asynchronous job mode",
+    "Add safe stamp scaffold profile with ImpMode=Edit and restricted import categories",
+    "Expand regression tests and update English and Ukrainian integration documentation"
   ],
   "built_version": "0.1.1",
   "built_api_version": 1,
