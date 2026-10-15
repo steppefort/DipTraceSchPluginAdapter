@@ -83,7 +83,7 @@ Copy the existing TitleJob application modules and resources, then adapt the int
 | Cancel or window close without applying | Call `ctx.cancel()` and close the window |
 | Execution mode | `mode=ui` in `adapter.ini` |
 | Title-block write scope | `write_scope=sheet_settings` in `adapter.ini` |
-| XML exchange | `ExpMode=All` and `ImpMode=All` in `settings.xml` |
+| XML exchange | `ExpMode=All` and `ImpMode=Edit` in `settings.xml` (verified TitleJob configuration) |
 
 Keep the GUI event loop inside `main()`. After a successful Apply, close the window and let `main()` return. The adapter validates the staged XML and writes it back to the exchange file; DipTrace imports it after the EXE exits. An exception after `commit_xml()` discards the staged result. Files saved directly by TitleJob, such as VPT templates, are not automatically rolled back.
 
@@ -92,3 +92,6 @@ The [UI example](../examples/ui/plugin.py) demonstrates matching `Designed by` b
 `ctx.environment()` reads inherited process values and returns normalized keys; for example, `Company` is returned as `company`. It does not create or edit project variables in DipTrace. Changing `os.environ` inside the plugin does not save those changes to the project.
 
 Test Apply, Cancel, missing variables, and fields with existing multiline text. Confirm that the first line of each matched title-block field is preserved and that unrelated schematic data remains unchanged.
+
+
+For a title-block-only scaffold use `py -3 tools/new_plugin.py D:\PluginBuild\TitleJobNext --name TitleJobNext --mode ui --profile stamp`. The `stamp` profile creates `ImpMode=Edit`, `Stamp=Yes`, `Patterns=No`, and disables all other import categories. The default `standard` profile remains unchanged for existing users. Preserve TitleJob's existing `prepare_import_xml()` implementation for DipTrace 5.3.

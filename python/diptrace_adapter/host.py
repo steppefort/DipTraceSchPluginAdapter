@@ -37,8 +37,8 @@ def read_config(path):
     settings=parse_settings(path.parent/'settings.xml')
     if mode=='job' and settings['ImpMode']!='None':raise AdapterError('job requires ImpMode=None')
     # Full exchange round trip: no partial list replacement is allowed here.
-    if mode=='ui' and (settings['ExpMode']!='All' or settings['ImpMode']!='All'):
-        raise AdapterError('ui API v1 requires ExpMode=All and ImpMode=All')
+    if mode=='ui' and (settings['ExpMode']!='All' or settings['ImpMode'] not in ('All','Edit')):
+        raise AdapterError('ui API v1 requires ExpMode=All and ImpMode=All or Edit')
     return c,dict(api_version=API_VERSION,adapter_version=__version__,
                   plugin_version=c.get('plugin','version',fallback='').strip() or None,
                   mode=mode,plugin_id=plugin_id,write_scope=scope,
@@ -96,6 +96,19 @@ def invoke_worker(request):
         return 1
 
 
+def exchange_identity(path):
+    """Capture the bytes and modification time from a stable file version."""
+    path=Path(path)
+    for attempt in range(3):
+        before=path.stat()
+        data=path.read_bytes()
+        after=path.stat()
+        identity=(after.st_mtime_ns,after.st_size)
+        if (before.st_mtime_ns,before.st_size)==identity:
+            return data,identity
+    raise AdapterError('Exchange changed during capture')
+
+
 def publish_result(run,original):
     run=Path(run);original=Path(original)
     request=json.loads((run/'context.json').read_text(encoding='utf-8'))
@@ -104,13 +117,15 @@ def publish_result(run,original):
     if request['mode']!='ui':raise AdapterError('Read-only invocation cannot publish')
     before=(run/'exchange.xml').read_bytes()
     digest=hashlib.sha256(before).hexdigest()
-    if digest!=request['source_sha256'] or hashlib.sha256(original.read_bytes()).hexdigest()!=digest:
+    current,current_identity=exchange_identity(original)
+    if (digest!=request['source_sha256'] or hashlib.sha256(current).hexdigest()!=digest
+            or list(current_identity)!=request['source_identity']):
         raise AdapterError('Exchange changed while plugin was open; result was not applied')
     data=(run/'result.xml').read_bytes()
     if hashlib.sha256(data).hexdigest()!=status['result_sha256']:raise AdapterError('Staged result hash mismatch')
     validate_result(before,data,request['write_scope'])
     if data==before:return False
-    atomic_write(original,data)
+    atomic_write(original,data,min_mtime_ns=current_identity[0]+2_000_000_000)
     json_write(run/'applied.json',{'applied':True,'sha256':status['result_sha256']})
     return True
 
@@ -118,7 +133,7 @@ def publish_result(run,original):
 def launch(config,exchange):
     config=Path(config).resolve();exchange=Path(exchange).resolve()
     c,request=read_config(config)
-    before=exchange.read_bytes();parse_xml(before)
+    before,identity=exchange_identity(exchange);parse_xml(before)
     raw=c.get('adapter','capture_dir',fallback='').strip()
     if raw:
         base=Path(os.path.expandvars(raw));base=base if base.is_absolute() else config.parent/base
@@ -126,6 +141,7 @@ def launch(config,exchange):
     run=base/(datetime.now().strftime('%Y%m%d-%H%M%S-')+uuid.uuid4().hex)
     run.mkdir(parents=True,exist_ok=False)
     request['source_sha256']=hashlib.sha256(before).hexdigest()
+    request['source_identity']=list(identity)
     atomic_write(run/'exchange.xml',before)
     json_write(run/'context.json',request)
     json_write(base/'latest.json',{'run_dir':str(run),'api_version':1})

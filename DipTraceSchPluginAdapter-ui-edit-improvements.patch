@@ -1,0 +1,352 @@
+diff --git a/README.md b/README.md
+index 1f19f2b..2b34836 100644
+--- a/README.md
++++ b/README.md
+@@ -336,7 +336,7 @@ INI files support UTF-8 with or without a BOM, and UTF-16LE with a BOM. Put comm
+ 
+ `main()` returns `None` or `0`. An exception or nonzero return value discards the staged XML. Returning without `commit_xml()` also leaves the schematic unchanged. This applies to the schematic exchange; files created by the plugin itself are not automatically rolled back.
+ 
+-API 1 requires `ExpMode=All` and `ImpMode=All` for `ui`. Returning partial updates for individual objects is not supported. See [API and lifecycle](docs/API.md).
++API 1 requires `ExpMode=All` and `ImpMode=All` or `ImpMode=Edit` for `ui`. Returning partial updates for individual objects is not supported. See [API and lifecycle](docs/API.md).
+ 
+ ### Environment variables
+ 
+diff --git a/docs/API.md b/docs/API.md
+index 107eb62..1212a64 100644
+--- a/docs/API.md
++++ b/docs/API.md
+@@ -19,7 +19,7 @@ The startup sequence is:
+ | Mode | Required exchange settings in `settings.xml` | Returning schematic changes |
+ | --- | --- | --- |
+ | `job` | `ImpMode=None` | Not allowed. |
+-| `ui` | `ExpMode=All` and `ImpMode=All` | Allowed through `ctx.commit_xml()`. |
++| `ui` | `ExpMode=All` and `ImpMode=All` or `Edit` | Allowed through `ctx.commit_xml()`. |
+ 
+ The mode controls execution and import behavior, not the GUI toolkit. Plugins may use Tkinter, Qt, or another toolkit. Keep the window's event loop inside `main()` and finish any work that affects the returned XML before `main()` returns.
+ 
+@@ -142,3 +142,6 @@ the generated `build_info.json` snapshot. Run `py -3 .adapter/host.py --version`
+ to identify the installed Python runtime without executing the plugin.
+ Plugin and adapter versions are independent; updating the dependency does not
+ change the plugin display name in DipTrace.
++
++
++UI supports both `ImpMode=All` and `ImpMode=Edit` with `ExpMode=All`. Both modes stage and publish the complete XML document; `Edit` does not switch `ctx.commit_xml()` to a patch API. The host checks both the original exchange SHA-256 and its modification time before publication. An actual write advances modification time by at least two seconds; no-op results are not published. In UI mode, the native launcher supervises the Python process tree with a Windows Job Object; `job` workers remain detached.
+diff --git a/docs/API_UA.md b/docs/API_UA.md
+index 24bc44a..c44900b 100644
+--- a/docs/API_UA.md
++++ b/docs/API_UA.md
+@@ -19,7 +19,7 @@ DipTrace запускає EXE плагіна з одним позиційним
+ | Режим | Обов’язкові параметри обміну в `settings.xml` | Повернення змін у схему |
+ | --- | --- | --- |
+ | `job` | `ImpMode=None` | Заборонено. |
+-| `ui` | `ExpMode=All` та `ImpMode=All` | Через `ctx.commit_xml()`. |
++| `ui` | `ExpMode=All` та `ImpMode=All` або `Edit` | Через `ctx.commit_xml()`. |
+ 
+ Режим визначає порядок виконання та імпорту, а не бібліотеку інтерфейсу. Плагін може використовувати Tkinter, Qt або іншу бібліотеку. Цикл подій вікна має працювати всередині `main()`. Усі дії, що впливають на повернений XML, потрібно завершити до повернення з `main()`.
+ 
+@@ -142,3 +142,6 @@ def main(ctx):
+ показує версію встановленої Python-частини без запуску плагіна.
+ Версії плагіна та адаптера незалежні; оновлення залежності не змінює назву
+ плагіна в меню DipTrace.
++
++
++UI підтримує `ImpMode=All` та `ImpMode=Edit` за `ExpMode=All`. В обох випадках `ctx.commit_xml()` передає повний XML, не частковий патч. Перед записом host перевіряє SHA-256 і час зміни початкового XML. Реальний запис збільшує час зміни щонайменше на дві секунди, а результат без змін не публікується. Нативний launcher контролює дерево Python-процесів через Windows Job Object лише для `ui`; фоновий `job` залишається незалежним.
+diff --git a/docs/MIGRATION.md b/docs/MIGRATION.md
+index b70bd91..91c4e9b 100644
+--- a/docs/MIGRATION.md
++++ b/docs/MIGRATION.md
+@@ -83,7 +83,7 @@ Copy the existing TitleJob application modules and resources, then adapt the int
+ | Cancel or window close without applying | Call `ctx.cancel()` and close the window |
+ | Execution mode | `mode=ui` in `adapter.ini` |
+ | Title-block write scope | `write_scope=sheet_settings` in `adapter.ini` |
+-| XML exchange | `ExpMode=All` and `ImpMode=All` in `settings.xml` |
++| XML exchange | `ExpMode=All` and `ImpMode=Edit` in `settings.xml` (verified TitleJob configuration) |
+ 
+ Keep the GUI event loop inside `main()`. After a successful Apply, close the window and let `main()` return. The adapter validates the staged XML and writes it back to the exchange file; DipTrace imports it after the EXE exits. An exception after `commit_xml()` discards the staged result. Files saved directly by TitleJob, such as VPT templates, are not automatically rolled back.
+ 
+@@ -92,3 +92,6 @@ The [UI example](../examples/ui/plugin.py) demonstrates matching `Designed by` b
+ `ctx.environment()` reads inherited process values and returns normalized keys; for example, `Company` is returned as `company`. It does not create or edit project variables in DipTrace. Changing `os.environ` inside the plugin does not save those changes to the project.
+ 
+ Test Apply, Cancel, missing variables, and fields with existing multiline text. Confirm that the first line of each matched title-block field is preserved and that unrelated schematic data remains unchanged.
++
++
++For a title-block-only scaffold use `py -3 tools/new_plugin.py D:\PluginBuild\TitleJobNext --name TitleJobNext --mode ui --profile stamp`. The `stamp` profile creates `ImpMode=Edit`, `Stamp=Yes`, `Patterns=No`, and disables all other import categories. The default `standard` profile remains unchanged for existing users. Preserve TitleJob's existing `prepare_import_xml()` implementation for DipTrace 5.3.
+diff --git a/docs/MIGRATION_UA.md b/docs/MIGRATION_UA.md
+index b79f301..029fc5b 100644
+--- a/docs/MIGRATION_UA.md
++++ b/docs/MIGRATION_UA.md
+@@ -83,7 +83,7 @@ py -3 tools/new_plugin.py D:\PluginBuild\TitleJobNext --name TitleJobNext --mode
+ | Cancel або закриття вікна без застосування | Викликати `ctx.cancel()` та закрити вікно |
+ | Режим виконання | `mode=ui` у `adapter.ini` |
+ | Область змін для рамок | `write_scope=sheet_settings` у `adapter.ini` |
+-| Обмін XML | `ExpMode=All` та `ImpMode=All` у `settings.xml` |
++| Обмін XML | `ExpMode=All` та `ImpMode=Edit` у `settings.xml` (перевірена конфігурація TitleJob) |
+ 
+ Цикл подій інтерфейсу має працювати всередині `main()`. Після успішного Apply закрийте вікно й дайте `main()` завершитися. Адаптер перевірить підготовлений XML та запише його у файл обміну; DipTrace імпортує результат після завершення EXE. Виняток після `commit_xml()` відкидає підготовлений результат. Файли, які TitleJob зберігає безпосередньо, наприклад шаблони VPT, автоматично не відкочуються.
+ 
+@@ -92,3 +92,6 @@ py -3 tools/new_plugin.py D:\PluginBuild\TitleJobNext --name TitleJobNext --mode
+ `ctx.environment()` читає успадковані значення середовища процесу та повертає нормалізовані ключі: наприклад, `Company` повертається як `company`. Метод не створює та не редагує змінні проєкту в DipTrace. Зміна `os.environ` усередині плагіна не зберігає ці зміни в проєкті.
+ 
+ Перевірте Apply, Cancel, відсутні змінні та поля з наявним багаторядковим текстом. Переконайтеся, що перший рядок кожного знайденого поля рамки зберігається, а решта даних схеми залишається незмінною.
++
++
++Для редактора штампа використовуйте `py -3 tools/new_plugin.py D:\PluginBuild\TitleJobNext --name TitleJobNext --mode ui --profile stamp`. Профіль `stamp` задає `ImpMode=Edit`, `Stamp=Yes`, `Patterns=No` та вимикає інші категорії імпорту. Стандартний профіль `standard` не змінено. Збережіть чинну реалізацію `prepare_import_xml()` у TitleJob для DipTrace 5.3.
+diff --git a/native/launcher.c b/native/launcher.c
+index dd5b81f..f2ba82e 100644
+--- a/native/launcher.c
++++ b/native/launcher.c
+@@ -10,6 +10,7 @@
+ #include "version.h"
+ #define CAP 32768
+ static HANDLE launch_log=INVALID_HANDLE_VALUE;
++static HANDLE ui_job=NULL;
+ static wchar_t log_path[CAP];
+ static void log_text(const wchar_t *text){
+  if(launch_log==INVALID_HANDLE_VALUE)return;
+@@ -163,18 +164,45 @@ int WINAPI wWinMain(HINSTANCE i,HINSTANCE p,PWSTR u,int s){
+   si.StartupInfo.hStdInput=input;si.StartupInfo.hStdOutput=child_log;si.StartupInfo.hStdError=child_log;
+   flags|=EXTENDED_STARTUPINFO_PRESENT;inherit=TRUE;
+  }else si.StartupInfo.cb=sizeof(STARTUPINFOW);
++ /* Only synchronous UI invocations belong to a kill-on-close job. */
++ wchar_t configured_mode[32];
++ GetPrivateProfileStringW(L"adapter",L"mode",L"job",configured_mode,32,config);
++ BOOL synchronous_ui=_wcsicmp(configured_mode,L"ui")==0;
++ if(synchronous_ui){
++  ui_job=CreateJobObjectW(NULL,NULL);
++  if(!ui_job){error(L"Cannot create UI process job");return 2;}
++  JOBOBJECT_EXTENDED_LIMIT_INFORMATION limit={0};
++  limit.BasicLimitInformation.LimitFlags=JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
++  if(!SetInformationJobObject(ui_job,JobObjectExtendedLimitInformation,&limit,sizeof(limit))){
++   error(L"Cannot configure UI process job");CloseHandle(ui_job);return 2;
++  }
++  flags|=CREATE_SUSPENDED;
++ }
+  BOOL started=CreateProcessW(exe,cmd,NULL,NULL,inherit,flags,NULL,dir,&si.StartupInfo,&pi);
+  DWORD start_error=GetLastError();
+  if(si.lpAttributeList){DeleteProcThreadAttributeList(si.lpAttributeList);free(si.lpAttributeList);}
+  if(child_log!=INVALID_HANDLE_VALUE)CloseHandle(child_log);
+  if(input!=INVALID_HANDLE_VALUE)CloseHandle(input);
+  if(!started){SetLastError(start_error);error(L"Could not start the configured Python executable. Check [python] executable in adapter.ini.");return 2;}
++ if(ui_job){
++  if(!AssignProcessToJobObject(ui_job,pi.hProcess)){
++   error(L"Cannot attach Python host to UI process job");
++   TerminateProcess(pi.hProcess,2);CloseHandle(pi.hThread);CloseHandle(pi.hProcess);
++   CloseHandle(ui_job);return 2;
++  }
++  if(ResumeThread(pi.hThread)==(DWORD)-1){
++   error(L"Cannot resume Python host");
++   TerminateProcess(pi.hProcess,2);CloseHandle(pi.hThread);CloseHandle(pi.hProcess);
++   CloseHandle(ui_job);return 2;
++  }
++ }
+  CloseHandle(pi.hThread);
+  DWORD waited=WaitForSingleObject(pi.hProcess,INFINITE),code=1;
+  if(waited!=WAIT_OBJECT_0||!GetExitCodeProcess(pi.hProcess,&code)){
+-  error(L"Could not obtain the Python process exit code.");CloseHandle(pi.hProcess);return 2;
++  error(L"Could not obtain the Python process exit code.");CloseHandle(pi.hProcess);if(ui_job)CloseHandle(ui_job);return 2;
+  }
+  CloseHandle(pi.hProcess);
++ if(ui_job){CloseHandle(ui_job);ui_job=NULL;}
+  wchar_t number[64];swprintf(number,64,L"%lu",code);log_value(L"Python exit code",number);
+  if(code)failure(L"The Python host exited with an error. See the launch log for its output.",code,L"Process exit code");
+  else log_text(L"Host returned successfully. A job worker may still be running.\r\n");
+diff --git a/python/diptrace_adapter/api.py b/python/diptrace_adapter/api.py
+index b090ced..db530fc 100644
+--- a/python/diptrace_adapter/api.py
++++ b/python/diptrace_adapter/api.py
+@@ -3,6 +3,7 @@ from __future__ import annotations
+ import hashlib
+ import json
+ import os
++import time
+ from pathlib import Path
+ import tempfile
+ import xml.etree.ElementTree as ET
+@@ -10,11 +11,17 @@ from .version import __version__
+ 
+ class AdapterError(RuntimeError): pass
+ 
+-def atomic_write(path, data):
++def atomic_write(path, data, *, min_mtime_ns=None):
+     path=Path(path);path.parent.mkdir(parents=True,exist_ok=True)
+     fd,name=tempfile.mkstemp(prefix='.'+path.name+'-',dir=path.parent)
+     try:
+-        with os.fdopen(fd,'wb') as f:f.write(data);f.flush();os.fsync(f.fileno())
++        with os.fdopen(fd,'wb') as f:
++            f.write(data);f.flush();os.fsync(f.fileno())
++        if min_mtime_ns is not None:
++            stamp=max(time.time_ns(),min_mtime_ns)
++            os.utime(name,ns=(stamp,stamp))
++            if Path(name).stat().st_mtime_ns < min_mtime_ns:
++                raise AdapterError('Filesystem cannot preserve the required exchange timestamp')
+         os.replace(name,path)
+     finally:Path(name).unlink(missing_ok=True)
+ 
+diff --git a/python/diptrace_adapter/host.py b/python/diptrace_adapter/host.py
+index 727bfa1..97b1791 100644
+--- a/python/diptrace_adapter/host.py
++++ b/python/diptrace_adapter/host.py
+@@ -37,8 +37,8 @@ def read_config(path):
+     settings=parse_settings(path.parent/'settings.xml')
+     if mode=='job' and settings['ImpMode']!='None':raise AdapterError('job requires ImpMode=None')
+     # Full exchange round trip: no partial list replacement is allowed here.
+-    if mode=='ui' and (settings['ExpMode']!='All' or settings['ImpMode']!='All'):
+-        raise AdapterError('ui API v1 requires ExpMode=All and ImpMode=All')
++    if mode=='ui' and (settings['ExpMode']!='All' or settings['ImpMode'] not in ('All','Edit')):
++        raise AdapterError('ui API v1 requires ExpMode=All and ImpMode=All or Edit')
+     return c,dict(api_version=API_VERSION,adapter_version=__version__,
+                   plugin_version=c.get('plugin','version',fallback='').strip() or None,
+                   mode=mode,plugin_id=plugin_id,write_scope=scope,
+@@ -96,6 +96,19 @@ def invoke_worker(request):
+         return 1
+ 
+ 
++def exchange_identity(path):
++    """Capture the bytes and modification time from a stable file version."""
++    path=Path(path)
++    for attempt in range(3):
++        before=path.stat()
++        data=path.read_bytes()
++        after=path.stat()
++        identity=(after.st_mtime_ns,after.st_size)
++        if (before.st_mtime_ns,before.st_size)==identity:
++            return data,identity
++    raise AdapterError('Exchange changed during capture')
++
++
+ def publish_result(run,original):
+     run=Path(run);original=Path(original)
+     request=json.loads((run/'context.json').read_text(encoding='utf-8'))
+@@ -104,13 +117,15 @@ def publish_result(run,original):
+     if request['mode']!='ui':raise AdapterError('Read-only invocation cannot publish')
+     before=(run/'exchange.xml').read_bytes()
+     digest=hashlib.sha256(before).hexdigest()
+-    if digest!=request['source_sha256'] or hashlib.sha256(original.read_bytes()).hexdigest()!=digest:
++    current,current_identity=exchange_identity(original)
++    if (digest!=request['source_sha256'] or hashlib.sha256(current).hexdigest()!=digest
++            or list(current_identity)!=request['source_identity']):
+         raise AdapterError('Exchange changed while plugin was open; result was not applied')
+     data=(run/'result.xml').read_bytes()
+     if hashlib.sha256(data).hexdigest()!=status['result_sha256']:raise AdapterError('Staged result hash mismatch')
+     validate_result(before,data,request['write_scope'])
+     if data==before:return False
+-    atomic_write(original,data)
++    atomic_write(original,data,min_mtime_ns=current_identity[0]+2_000_000_000)
+     json_write(run/'applied.json',{'applied':True,'sha256':status['result_sha256']})
+     return True
+ 
+@@ -118,7 +133,7 @@ def publish_result(run,original):
+ def launch(config,exchange):
+     config=Path(config).resolve();exchange=Path(exchange).resolve()
+     c,request=read_config(config)
+-    before=exchange.read_bytes();parse_xml(before)
++    before,identity=exchange_identity(exchange);parse_xml(before)
+     raw=c.get('adapter','capture_dir',fallback='').strip()
+     if raw:
+         base=Path(os.path.expandvars(raw));base=base if base.is_absolute() else config.parent/base
+@@ -126,6 +141,7 @@ def launch(config,exchange):
+     run=base/(datetime.now().strftime('%Y%m%d-%H%M%S-')+uuid.uuid4().hex)
+     run.mkdir(parents=True,exist_ok=False)
+     request['source_sha256']=hashlib.sha256(before).hexdigest()
++    request['source_identity']=list(identity)
+     atomic_write(run/'exchange.xml',before)
+     json_write(run/'context.json',request)
+     json_write(base/'latest.json',{'run_dir':str(run),'api_version':1})
+diff --git a/tests/test_adapter.py b/tests/test_adapter.py
+index 0cd9175..fb51850 100644
+--- a/tests/test_adapter.py
++++ b/tests/test_adapter.py
+@@ -120,6 +120,59 @@ def main(ctx):
+         p=self.plugin/'settings.xml';p.write_text(p.read_text().replace('<ExpMode>All','<ExpMode>Partial'))
+         with self.assertRaisesRegex(AdapterError,'ExpMode=All'):read_config(ini)
+ 
++    def test_ui_edit_mode_preserves_other_schematic_data(self):
++        ini=self.setup_plugin('ui', '''def main(ctx):
++    root=ctx.document()
++    root.find('.//TextLine').text='Edited stamp'
++    ctx.commit_xml(root)
++''')
++        settings=self.plugin/'settings.xml'
++        settings.write_text(settings.read_text().replace('<ImpMode>All','<ImpMode>Edit'),encoding='utf-8')
++        self.assertEqual(read_config(ini)[1]['settings']['ImpMode'],'Edit')
++        self.assertEqual(launch(ini,self.original),0)
++        result=parse_xml(self.original.read_bytes())
++        self.assertEqual(result.find('.//TextLine').text,'Edited stamp')
++        self.assertEqual(result.findtext('./Schematic/Nets/Net/Name'),'KEEP')
++
++    def test_ui_rejects_unrecognized_import_mode(self):
++        ini=self.setup_plugin('ui','def main(ctx):pass\n')
++        settings=self.plugin/'settings.xml'
++        settings.write_text(settings.read_text().replace('<ImpMode>All','<ImpMode>None'),encoding='utf-8')
++        with self.assertRaisesRegex(AdapterError,'ImpMode=All or Edit'):
++            read_config(ini)
++
++    def test_stamp_profile(self):
++        create(self.plugin,'StampPlugin','ui',profile='stamp')
++        root=ET.parse(self.plugin/'settings.xml').getroot()
++        self.assertEqual(root.findtext('./Settings/ImpMode'),'Edit')
++        self.assertEqual(root.findtext('./Settings/Stamp'),'Yes')
++        self.assertEqual(root.findtext('./Settings/Patterns'),'No')
++        for category in ('Comp','Net','Shape','Bus','Table','BusConnectors','Diff','Dim','Board','Trace'):
++            self.assertEqual(root.findtext('./Settings/'+category),'None')
++        self.assertEqual(read_config(self.plugin/'adapter.ini')[1]['mode'],'ui')
++
++    def test_rewritten_identical_source_is_rejected(self):
++        ini=self.setup_plugin('ui','def main(ctx):pass\n')
++        launch(ini,self.original)
++        ctx=Context(self.run_dir()/'context.json')
++        root=ctx.document();root.find('.//TextLine').text='Candidate'
++        ctx.commit_xml(root)
++        (ctx.run_dir/'status.json').write_text(json.dumps({'status':'changed','result_sha256':ctx._staged}))
++        initial=self.original.stat().st_mtime_ns
++        os.utime(self.original,ns=(initial+5_000_000_000,initial+5_000_000_000))
++        with self.assertRaisesRegex(AdapterError,'changed while'):
++            publish_result(self.run_dir(),self.original)
++
++    def test_successful_publish_advances_timestamp(self):
++        ini=self.setup_plugin('ui', '''def main(ctx):
++    root=ctx.document()
++    root.find('.//TextLine').text='New heading'
++    ctx.commit_xml(root)
++''')
++        original_mtime=self.original.stat().st_mtime_ns
++        self.assertEqual(launch(ini,self.original),0)
++        self.assertGreaterEqual(self.original.stat().st_mtime_ns,original_mtime+2_000_000_000)
++
+     def test_sheet_scope_prevents_other_edits(self):
+         root=parse_xml(self.before);root.find('./Schematic/Nets/Net/Name').text='UNWANTED'
+         candidate=ET.tostring(root)
+diff --git a/tools/new_plugin.py b/tools/new_plugin.py
+index 087f589..47d1085 100644
+--- a/tools/new_plugin.py
++++ b/tools/new_plugin.py
+@@ -8,8 +8,10 @@ from vendor_adapter import install
+ from versioning import read_info
+ ROOT=Path(__file__).resolve().parents[1]
+ 
+-def create(destination,name,mode,plugin_version=None):
++def create(destination,name,mode,plugin_version=None,profile="standard"):
+     if mode not in ('job','ui'):raise ValueError('Unknown mode')
++    if profile not in ('standard','stamp'):raise ValueError('Unknown profile')
++    if profile=='stamp' and mode!='ui':raise ValueError('stamp profile requires ui mode')
+     if destination.exists():raise FileExistsError('Destination already exists')
+     # Name validation is shared with vendoring, before business files are written.
+     import re
+@@ -40,6 +42,10 @@ version = {plugin_version or ''}
+     tags={'ExpMode':'All','ImpMode':'None' if mode=='job' else 'All',
+           'Comp':'All','Net':'All','Shape':'All','Bus':'All','Table':'All','BusConnectors':'All','Diff':'All',
+           'Dim':'None','Board':'None','Trace':'None','Stamp':'Yes','Patterns':'Yes'}
++    if profile=='stamp':
++        tags.update({'ImpMode':'Edit','Patterns':'No'})
++        for category in ('Comp','Net','Shape','Bus','Table','BusConnectors','Diff'):
++            tags[category]='None'
+     for key,value in tags.items():ET.SubElement(settings,key).text=value
+     ET.indent(source)
+     (destination/'settings.xml').write_bytes(ET.tostring(source,encoding='utf-8',xml_declaration=True))
+@@ -51,4 +57,5 @@ version = {plugin_version or ''}
+ if __name__=='__main__':
+     p=argparse.ArgumentParser();p.add_argument('destination',type=Path);p.add_argument('--name',required=True);p.add_argument('--mode',choices=['job','ui'],required=True)
+     p.add_argument('--plugin-version',help='Independent plugin version, shown in the DipTrace menu')
+-    a=p.parse_args();print(create(a.destination,a.name,a.mode,a.plugin_version))
++    p.add_argument('--profile',choices=['standard','stamp'],default='standard',help='DipTrace settings profile')
++    a=p.parse_args();print(create(a.destination,a.name,a.mode,a.plugin_version,a.profile))

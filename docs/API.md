@@ -19,7 +19,7 @@ The startup sequence is:
 | Mode | Required exchange settings in `settings.xml` | Returning schematic changes |
 | --- | --- | --- |
 | `job` | `ImpMode=None` | Not allowed. |
-| `ui` | `ExpMode=All` and `ImpMode=All` | Allowed through `ctx.commit_xml()`. |
+| `ui` | `ExpMode=All` and `ImpMode=All` or `Edit` | Allowed through `ctx.commit_xml()`. |
 
 The mode controls execution and import behavior, not the GUI toolkit. Plugins may use Tkinter, Qt, or another toolkit. Keep the window's event loop inside `main()` and finish any work that affects the returned XML before `main()` returns.
 
@@ -142,3 +142,6 @@ the generated `build_info.json` snapshot. Run `py -3 .adapter/host.py --version`
 to identify the installed Python runtime without executing the plugin.
 Plugin and adapter versions are independent; updating the dependency does not
 change the plugin display name in DipTrace.
+
+
+UI supports both `ImpMode=All` and `ImpMode=Edit` with `ExpMode=All`. Both modes stage and publish the complete XML document; `Edit` does not switch `ctx.commit_xml()` to a patch API. The host checks both the original exchange SHA-256 and its modification time before publication. An actual write advances modification time by at least two seconds; no-op results are not published. In UI mode, the native launcher supervises the Python process tree with a Windows Job Object; `job` workers remain detached.

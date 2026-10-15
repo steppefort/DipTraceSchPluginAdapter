@@ -336,7 +336,7 @@ INI files support UTF-8 with or without a BOM, and UTF-16LE with a BOM. Put comm
 
 `main()` returns `None` or `0`. An exception or nonzero return value discards the staged XML. Returning without `commit_xml()` also leaves the schematic unchanged. This applies to the schematic exchange; files created by the plugin itself are not automatically rolled back.
 
-API 1 requires `ExpMode=All` and `ImpMode=All` for `ui`. Returning partial updates for individual objects is not supported. See [API and lifecycle](docs/API.md).
+API 1 requires `ExpMode=All` and `ImpMode=All` or `ImpMode=Edit` for `ui`. Returning partial updates for individual objects is not supported. See [API and lifecycle](docs/API.md).
 
 ### Environment variables
 

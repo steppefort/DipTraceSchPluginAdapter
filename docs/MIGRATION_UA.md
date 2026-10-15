@@ -83,7 +83,7 @@ py -3 tools/new_plugin.py D:\PluginBuild\TitleJobNext --name TitleJobNext --mode
 | Cancel або закриття вікна без застосування | Викликати `ctx.cancel()` та закрити вікно |
 | Режим виконання | `mode=ui` у `adapter.ini` |
 | Область змін для рамок | `write_scope=sheet_settings` у `adapter.ini` |
-| Обмін XML | `ExpMode=All` та `ImpMode=All` у `settings.xml` |
+| Обмін XML | `ExpMode=All` та `ImpMode=Edit` у `settings.xml` (перевірена конфігурація TitleJob) |
 
 Цикл подій інтерфейсу має працювати всередині `main()`. Після успішного Apply закрийте вікно й дайте `main()` завершитися. Адаптер перевірить підготовлений XML та запише його у файл обміну; DipTrace імпортує результат після завершення EXE. Виняток після `commit_xml()` відкидає підготовлений результат. Файли, які TitleJob зберігає безпосередньо, наприклад шаблони VPT, автоматично не відкочуються.
 
@@ -92,3 +92,6 @@ py -3 tools/new_plugin.py D:\PluginBuild\TitleJobNext --name TitleJobNext --mode
 `ctx.environment()` читає успадковані значення середовища процесу та повертає нормалізовані ключі: наприклад, `Company` повертається як `company`. Метод не створює та не редагує змінні проєкту в DipTrace. Зміна `os.environ` усередині плагіна не зберігає ці зміни в проєкті.
 
 Перевірте Apply, Cancel, відсутні змінні та поля з наявним багаторядковим текстом. Переконайтеся, що перший рядок кожного знайденого поля рамки зберігається, а решта даних схеми залишається незмінною.
+
+
+Для редактора штампа використовуйте `py -3 tools/new_plugin.py D:\PluginBuild\TitleJobNext --name TitleJobNext --mode ui --profile stamp`. Профіль `stamp` задає `ImpMode=Edit`, `Stamp=Yes`, `Patterns=No` та вимикає інші категорії імпорту. Стандартний профіль `standard` не змінено. Збережіть чинну реалізацію `prepare_import_xml()` у TitleJob для DipTrace 5.3.

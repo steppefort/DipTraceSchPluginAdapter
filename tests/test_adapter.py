@@ -120,6 +120,59 @@ def main(ctx):
         p=self.plugin/'settings.xml';p.write_text(p.read_text().replace('<ExpMode>All','<ExpMode>Partial'))
         with self.assertRaisesRegex(AdapterError,'ExpMode=All'):read_config(ini)
 
+    def test_ui_edit_mode_preserves_other_schematic_data(self):
+        ini=self.setup_plugin('ui', '''def main(ctx):
+    root=ctx.document()
+    root.find('.//TextLine').text='Edited stamp'
+    ctx.commit_xml(root)
+''')
+        settings=self.plugin/'settings.xml'
+        settings.write_text(settings.read_text().replace('<ImpMode>All','<ImpMode>Edit'),encoding='utf-8')
+        self.assertEqual(read_config(ini)[1]['settings']['ImpMode'],'Edit')
+        self.assertEqual(launch(ini,self.original),0)
+        result=parse_xml(self.original.read_bytes())
+        self.assertEqual(result.find('.//TextLine').text,'Edited stamp')
+        self.assertEqual(result.findtext('./Schematic/Nets/Net/Name'),'KEEP')
+
+    def test_ui_rejects_unrecognized_import_mode(self):
+        ini=self.setup_plugin('ui','def main(ctx):pass\n')
+        settings=self.plugin/'settings.xml'
+        settings.write_text(settings.read_text().replace('<ImpMode>All','<ImpMode>None'),encoding='utf-8')
+        with self.assertRaisesRegex(AdapterError,'ImpMode=All or Edit'):
+            read_config(ini)
+
+    def test_stamp_profile(self):
+        create(self.plugin,'StampPlugin','ui',profile='stamp')
+        root=ET.parse(self.plugin/'settings.xml').getroot()
+        self.assertEqual(root.findtext('./Settings/ImpMode'),'Edit')
+        self.assertEqual(root.findtext('./Settings/Stamp'),'Yes')
+        self.assertEqual(root.findtext('./Settings/Patterns'),'No')
+        for category in ('Comp','Net','Shape','Bus','Table','BusConnectors','Diff','Dim','Board','Trace'):
+            self.assertEqual(root.findtext('./Settings/'+category),'None')
+        self.assertEqual(read_config(self.plugin/'adapter.ini')[1]['mode'],'ui')
+
+    def test_rewritten_identical_source_is_rejected(self):
+        ini=self.setup_plugin('ui','def main(ctx):pass\n')
+        launch(ini,self.original)
+        ctx=Context(self.run_dir()/'context.json')
+        root=ctx.document();root.find('.//TextLine').text='Candidate'
+        ctx.commit_xml(root)
+        (ctx.run_dir/'status.json').write_text(json.dumps({'status':'changed','result_sha256':ctx._staged}))
+        initial=self.original.stat().st_mtime_ns
+        os.utime(self.original,ns=(initial+5_000_000_000,initial+5_000_000_000))
+        with self.assertRaisesRegex(AdapterError,'changed while'):
+            publish_result(self.run_dir(),self.original)
+
+    def test_successful_publish_advances_timestamp(self):
+        ini=self.setup_plugin('ui', '''def main(ctx):
+    root=ctx.document()
+    root.find('.//TextLine').text='New heading'
+    ctx.commit_xml(root)
+''')
+        original_mtime=self.original.stat().st_mtime_ns
+        self.assertEqual(launch(ini,self.original),0)
+        self.assertGreaterEqual(self.original.stat().st_mtime_ns,original_mtime+2_000_000_000)
+
     def test_sheet_scope_prevents_other_edits(self):
         root=parse_xml(self.before);root.find('./Schematic/Nets/Net/Name').text='UNWANTED'
         candidate=ET.tostring(root)

@@ -10,6 +10,7 @@
 #include "version.h"
 #define CAP 32768
 static HANDLE launch_log=INVALID_HANDLE_VALUE;
+static HANDLE ui_job=NULL;
 static wchar_t log_path[CAP];
 static void log_text(const wchar_t *text){
  if(launch_log==INVALID_HANDLE_VALUE)return;
@@ -163,18 +164,45 @@ int WINAPI wWinMain(HINSTANCE i,HINSTANCE p,PWSTR u,int s){
   si.StartupInfo.hStdInput=input;si.StartupInfo.hStdOutput=child_log;si.StartupInfo.hStdError=child_log;
   flags|=EXTENDED_STARTUPINFO_PRESENT;inherit=TRUE;
  }else si.StartupInfo.cb=sizeof(STARTUPINFOW);
+ /* Only synchronous UI invocations belong to a kill-on-close job. */
+ wchar_t configured_mode[32];
+ GetPrivateProfileStringW(L"adapter",L"mode",L"job",configured_mode,32,config);
+ BOOL synchronous_ui=_wcsicmp(configured_mode,L"ui")==0;
+ if(synchronous_ui){
+  ui_job=CreateJobObjectW(NULL,NULL);
+  if(!ui_job){error(L"Cannot create UI process job");return 2;}
+  JOBOBJECT_EXTENDED_LIMIT_INFORMATION limit={0};
+  limit.BasicLimitInformation.LimitFlags=JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
+  if(!SetInformationJobObject(ui_job,JobObjectExtendedLimitInformation,&limit,sizeof(limit))){
+   error(L"Cannot configure UI process job");CloseHandle(ui_job);return 2;
+  }
+  flags|=CREATE_SUSPENDED;
+ }
  BOOL started=CreateProcessW(exe,cmd,NULL,NULL,inherit,flags,NULL,dir,&si.StartupInfo,&pi);
  DWORD start_error=GetLastError();
  if(si.lpAttributeList){DeleteProcThreadAttributeList(si.lpAttributeList);free(si.lpAttributeList);}
  if(child_log!=INVALID_HANDLE_VALUE)CloseHandle(child_log);
  if(input!=INVALID_HANDLE_VALUE)CloseHandle(input);
  if(!started){SetLastError(start_error);error(L"Could not start the configured Python executable. Check [python] executable in adapter.ini.");return 2;}
+ if(ui_job){
+  if(!AssignProcessToJobObject(ui_job,pi.hProcess)){
+   error(L"Cannot attach Python host to UI process job");
+   TerminateProcess(pi.hProcess,2);CloseHandle(pi.hThread);CloseHandle(pi.hProcess);
+   CloseHandle(ui_job);return 2;
+  }
+  if(ResumeThread(pi.hThread)==(DWORD)-1){
+   error(L"Cannot resume Python host");
+   TerminateProcess(pi.hProcess,2);CloseHandle(pi.hThread);CloseHandle(pi.hProcess);
+   CloseHandle(ui_job);return 2;
+  }
+ }
  CloseHandle(pi.hThread);
  DWORD waited=WaitForSingleObject(pi.hProcess,INFINITE),code=1;
  if(waited!=WAIT_OBJECT_0||!GetExitCodeProcess(pi.hProcess,&code)){
-  error(L"Could not obtain the Python process exit code.");CloseHandle(pi.hProcess);return 2;
+  error(L"Could not obtain the Python process exit code.");CloseHandle(pi.hProcess);if(ui_job)CloseHandle(ui_job);return 2;
  }
  CloseHandle(pi.hProcess);
+ if(ui_job){CloseHandle(ui_job);ui_job=NULL;}
  wchar_t number[64];swprintf(number,64,L"%lu",code);log_value(L"Python exit code",number);
  if(code)failure(L"The Python host exited with an error. See the launch log for its output.",code,L"Process exit code");
  else log_text(L"Host returned successfully. A job worker may still be running.\r\n");

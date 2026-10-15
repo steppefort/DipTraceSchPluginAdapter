@@ -8,8 +8,10 @@ from vendor_adapter import install
 from versioning import read_info
 ROOT=Path(__file__).resolve().parents[1]
 
-def create(destination,name,mode,plugin_version=None):
+def create(destination,name,mode,plugin_version=None,profile="standard"):
     if mode not in ('job','ui'):raise ValueError('Unknown mode')
+    if profile not in ('standard','stamp'):raise ValueError('Unknown profile')
+    if profile=='stamp' and mode!='ui':raise ValueError('stamp profile requires ui mode')
     if destination.exists():raise FileExistsError('Destination already exists')
     # Name validation is shared with vendoring, before business files are written.
     import re
@@ -40,6 +42,10 @@ version = {plugin_version or ''}
     tags={'ExpMode':'All','ImpMode':'None' if mode=='job' else 'All',
           'Comp':'All','Net':'All','Shape':'All','Bus':'All','Table':'All','BusConnectors':'All','Diff':'All',
           'Dim':'None','Board':'None','Trace':'None','Stamp':'Yes','Patterns':'Yes'}
+    if profile=='stamp':
+        tags.update({'ImpMode':'Edit','Patterns':'No'})
+        for category in ('Comp','Net','Shape','Bus','Table','BusConnectors','Diff'):
+            tags[category]='None'
     for key,value in tags.items():ET.SubElement(settings,key).text=value
     ET.indent(source)
     (destination/'settings.xml').write_bytes(ET.tostring(source,encoding='utf-8',xml_declaration=True))
@@ -51,4 +57,5 @@ version = {plugin_version or ''}
 if __name__=='__main__':
     p=argparse.ArgumentParser();p.add_argument('destination',type=Path);p.add_argument('--name',required=True);p.add_argument('--mode',choices=['job','ui'],required=True)
     p.add_argument('--plugin-version',help='Independent plugin version, shown in the DipTrace menu')
-    a=p.parse_args();print(create(a.destination,a.name,a.mode,a.plugin_version))
+    p.add_argument('--profile',choices=['standard','stamp'],default='standard',help='DipTrace settings profile')
+    a=p.parse_args();print(create(a.destination,a.name,a.mode,a.plugin_version,a.profile))

@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import time
 from pathlib import Path
 import tempfile
 import xml.etree.ElementTree as ET
@@ -10,11 +11,17 @@ from .version import __version__
 
 class AdapterError(RuntimeError): pass
 
-def atomic_write(path, data):
+def atomic_write(path, data, *, min_mtime_ns=None):
     path=Path(path);path.parent.mkdir(parents=True,exist_ok=True)
     fd,name=tempfile.mkstemp(prefix='.'+path.name+'-',dir=path.parent)
     try:
-        with os.fdopen(fd,'wb') as f:f.write(data);f.flush();os.fsync(f.fileno())
+        with os.fdopen(fd,'wb') as f:
+            f.write(data);f.flush();os.fsync(f.fileno())
+        if min_mtime_ns is not None:
+            stamp=max(time.time_ns(),min_mtime_ns)
+            os.utime(name,ns=(stamp,stamp))
+            if Path(name).stat().st_mtime_ns < min_mtime_ns:
+                raise AdapterError('Filesystem cannot preserve the required exchange timestamp')
         os.replace(name,path)
     finally:Path(name).unlink(missing_ok=True)
 
