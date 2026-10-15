@@ -2,8 +2,8 @@
   "version": "0.1.2",
   "api_version": 1,
   "build": "Zig 0.14.1; x86_64-windows-gnu; GUI subsystem",
-  "exe_sha256": "215ca6e1e6dffc128307366754ce78319a27fe30578d783c039e493801225bf3",
-  "exe_bytes": 30208,
+  "exe_sha256": "cb7fdccf3469144f47f3e0285f16142d29a70db0a83b2ecd6f1cb29b72584c8d",
+  "exe_bytes": 31232,
   "changes": [
     "Support ImpMode=Edit or All in UI mode with API 1 and full XML commits",
     "Advance modified exchange XML timestamps by at least two seconds; avoid no-op publication",
@@ -12,7 +12,7 @@
     "Add safe stamp scaffold profile with ImpMode=Edit and restricted import categories",
     "Expand regression tests and update English and Ukrainian integration documentation"
   ],
-  "built_version": "0.1.1",
+  "built_version": "0.1.2",
   "built_api_version": 1,
-  "native_source_sha256": "fc465e83e6cf3e51c7241bf28cbab2b89763073615e9814715d9c9c156218513"
+  "native_source_sha256": "ed693941e6b245df49a2675afa33725680f0fbec46b1a3eecd0808f6833f5ec0"
 }
